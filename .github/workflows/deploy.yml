@@ -1,0 +1,57 @@
+name: Deploy upsell
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  id-token: write   
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Extrair versão da tag
+        run: echo "APP_VERSION=${GITHUB_REF_NAME}" >> $GITHUB_ENV
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Build do React (Vite) com versão
+        run: npm run build
+        env:
+          VITE_APP_VERSION: ${{ env.APP_VERSION }}
+
+      - name: Configurar credenciais AWS via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::703547554329:role/transformapro
+          aws-region: us-east-1
+
+      - name: Deploy para S3 na pasta /upsell
+        run: |
+          aws s3 sync dist/ s3://transformapro.site/upsell \
+            --delete \
+            --cache-control "max-age=31536000,public" \
+            --exclude "index.html"
+
+          aws s3 cp dist/index.html s3://transformapro.site/upsell/index.html \
+            --cache-control "no-cache,no-store,must-revalidate"
+
+      - name: Invalidar cache do CloudFront
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id E35ITPWXBV30M \
+            --paths "/upsell/*"
