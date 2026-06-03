@@ -1,4 +1,4 @@
-name: Deploy upsell
+name: Deploy Downsell Pilates
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - 'v*'
 
 permissions:
-  id-token: write   
+  id-token: write
   contents: read
 
 jobs:
@@ -17,9 +17,6 @@ jobs:
       - name: Checkout do código
         uses: actions/checkout@v4
 
-      - name: Extrair versão da tag
-        run: echo "APP_VERSION=${GITHUB_REF_NAME}" >> $GITHUB_ENV
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -29,29 +26,31 @@ jobs:
       - name: Instalar dependências
         run: npm ci
 
-      - name: Build do React (Vite) com versão
+      - name: Build do React (Vite)
         run: npm run build
-        env:
-          VITE_APP_VERSION: ${{ env.APP_VERSION }}
 
       - name: Configurar credenciais AWS via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::703547554329:role/transformapro
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-east-1
 
-      - name: Deploy para S3 na pasta /upsell
+      - name: Deploy para S3 (cache longo)
         run: |
-          aws s3 sync dist/ s3://transformapro.site/upsell \
+          aws s3 sync dist/ s3://pilatesdacavala/downsell \
             --delete \
             --cache-control "max-age=31536000,public" \
             --exclude "index.html"
 
-          aws s3 cp dist/index.html s3://transformapro.site/upsell/index.html \
+          aws s3 cp dist/index.html s3://pilatesdacavala/downsell/index.html \
             --cache-control "no-cache,no-store,must-revalidate"
 
       - name: Invalidar cache do CloudFront
         run: |
-          aws cloudfront create-invalidation \
-            --distribution-id E35ITPWXBV30M \
-            --paths "/upsell/*"
+          for i in 1 2 3; do
+            aws cloudfront create-invalidation \
+              --distribution-id E1KUI788CASJJN \
+              --paths "/downsell/*" && break
+            echo "Tentativa $i falhou, aguardando 15s..."
+            sleep 15
+          done

@@ -89,7 +89,7 @@ const Index = () => {
             {[
               "Descobre exatamente o que tá travando seu intestino",
               "Elimina o inchaço que não some nem fazendo tudo certo",
-              "Potencializa o resultado da Gelatina Mounjaro por dentro",
+              "Potencializa o resultado do Pilates acelerando a definição e a tonificação",
             ].map((text, i) => (
               <li key={i} className="flex items-start gap-4">
                 <span className="text-primary text-xl font-bold mt-0.5">✓</span>
